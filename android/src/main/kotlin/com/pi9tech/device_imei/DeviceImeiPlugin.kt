@@ -1,45 +1,48 @@
 package com.pi9tech.device_imei
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.telephony.TelephonyManager
+import androidx.core.app.ActivityCompat
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
 
-class DeviceImeiPlugin: MethodCallHandler {
-  companion object {
-    @JvmStatic
-    fun registerWith(registrar: Registrar) {
-      val channel = MethodChannel(registrar.messenger(), "device_imei")
-      channel.setMethodCallHandler(DeviceImeiPlugin())
-    }
-  }
+class DeviceImeiPlugin(val context: Context) : MethodCallHandler {
 
-  override fun onMethodCall(call: MethodCall, result: Result) {
-    when {
-        call.method == "getPlatformVersion" -> result.success("Android ${android.os.Build.VERSION.RELEASE}")
-        call.method=="imeiNo" -> {
-            val tel = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    companion object {
 
-            //imei = (TextView) findViewById(R.id.textView2);
-            if (ActivityCompat.checkSelfPermission(this@MainActivity,
-                            Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return@OnClickListener
-            }
-
-            val s1 = tel.deviceId
-            Toast.makeText(applicationContext,
-                    "" + s1, Toast.LENGTH_LONG).show()
-        })
+        @JvmStatic
+        fun registerWith(registrar: Registrar) {
+            val channel = MethodChannel(registrar.messenger(), "device_imei")
+            channel.setMethodCallHandler(DeviceImeiPlugin(context = registrar.context()))
         }
-        else -> result.notImplemented()
     }
-  }
+
+    @SuppressLint("HardwareIds")
+    override fun onMethodCall(call: MethodCall, result: Result) {
+        when {
+            call.method == "getPlatformVersion" -> result.success("Android ${Build.VERSION.RELEASE}")
+            call.method == "imeiNo" -> {
+                val tel = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        result.success(tel.imei)
+                    } else {
+                        result.success(tel.deviceId)
+                    }
+                } else {
+                    result.success("Have no permission to read imei")
+                }
+            }
+            else -> result.notImplemented()
+        }
+    }
 }
